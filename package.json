@@ -1,0 +1,35 @@
+{
+  "name": "remix-polyglot",
+  "version": "0.0.0-development",
+  "description": "An opinionated, performance obsessed, hacked i18n solution for remix that aims to just work",
+  "scripts": {
+    "build": "run-p build:**",
+    "build:decl": "tsc",
+    "watch": "WATCH=1 npm run build",
+    "build:server:esm": "CONFIG=serverEsm node build.js",
+    "build:server:cjs": "CONFIG=serverCjs node build.js",
+    "build:client:esm": "CONFIG=clientEsm node build.js",
+    "build:client:cjs": "CONFIG=clientCjs node build.js"
+  },
+  "main": "dist/server.cjs",
+  "module": "dist/server.js",
+  "browser": "dist/client.js",
+  "types": "dist/server.d.ts",
+  "peerDependencies": {
+    "@remix-run/react": "^1.5.1",
+    "jsesc": "^3.0.2",
+    "node-polyglot": "^2.4.2",
+    "react": ">=16.8"
+  },
+  "devDependencies": {
+    "@remix-run/node": "1.5.1",
+    "@types/jsesc": "3.0.1",
+    "@types/node": "17.0.41",
+    "@types/node-polyglot": "2.4.2",
+    "@types/react": "18.0.12",
+    "esbuild": "0.14.43",
+    "esbuild-plugin-alias": "0.2.1",
+    "npm-run-all": "4.1.5",
+    "typescript": "4.7.3"
+  }
+}

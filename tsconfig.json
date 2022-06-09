@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2020",
+    "module": "esnext",
+    "declaration": true,
+    "jsx": "react",
+    "jsxFactory": "createElement",
+    "jsxFragmentFactory": "Fragment",
+    "emitDeclarationOnly": true,
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "outDir": "dist"
+  },
+  "include": ["src/*.ts", "src/*.tsx"]
+}
