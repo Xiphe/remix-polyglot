@@ -1,4 +1,5 @@
 src
+examples
 .*
 build.js
 tsconfig.json
