@@ -7,17 +7,20 @@ import type {
 } from 'react';
 import '@remix-run/react';
 import type { ClientRoute } from '@remix-run/react/routes';
-import type { AllowedPolyglotOptions, HandoffData } from './common';
+import type {
+  HandoffData,
+  PolyglotOptionsGetter,
+  PolyglotWithStaticLocale,
+} from './common';
 import type { Params } from 'react-router';
 import {
   getRouteNamespaces,
-  isValidKey,
   getGlobalName,
   isRecordOfStrings,
   isRecord,
+  initiatePolyglot,
 } from './common';
 import { RemixEntryContext } from '@remix-run/react/components';
-import Polyglot from 'node-polyglot';
 import {
   useContext,
   createContext,
@@ -28,6 +31,8 @@ import {
   useMemo,
   useEffect,
 } from 'react';
+
+export type { PolyglotWithStaticLocale } from './common';
 
 type ContextType<T extends Context<any>> = Parameters<
   Parameters<T['Consumer']>[0]['children']
@@ -51,17 +56,14 @@ export function useRemixEntryContext(): RemixEntryContextType {
   return context;
 }
 
-export type { I18nHandle } from './common';
-
 interface RemixPolyglotContextType {
   loadPhrases: (namespace: string | string[], locale?: string) => Promise<void>;
-  store: Record<string, Polyglot>;
+  store: Record<string, PolyglotWithStaticLocale>;
   _patched: symbol;
   setLocale: Dispatch<SetStateAction<string>>;
   getLocaleFromUrl?: (url: URL, params: Params<string>) => string | undefined;
   routeNamespaces: HandoffData['routeNamespaces'];
   initialPreload: string[];
-  key: string | undefined;
   locale: string;
 }
 
@@ -70,61 +72,60 @@ const RemixPolyglotContext = createContext<
 >(undefined);
 
 interface SetupOptions {
-  key?: string;
+  manifest: Record<string, string>;
   fetch?: typeof fetch;
   getLocaleFromUrl?: RemixPolyglotContextType['getLocaleFromUrl'];
-  polyglotOptions?:
-    | AllowedPolyglotOptions
-    | Promise<AllowedPolyglotOptions>
-    | ((
-        locale: string,
-        namespace: string,
-      ) => AllowedPolyglotOptions | Promise<AllowedPolyglotOptions>);
+  polyglotOptions?: PolyglotOptionsGetter;
 }
 
 export async function setup(
-  options: SetupOptions = {},
+  options: SetupOptions,
 ): Promise<ComponentType<{ children?: ReactNode }>> {
-  if (!isValidKey(options.key)) {
-    throw new Error(`Invalid key`);
-  }
-  const handoffData = (window as any)[
-    getGlobalName(options.key)
-  ] as HandoffData;
+  const handoffData = (window as any)[getGlobalName()] as HandoffData;
   const caches = {
     indexes: {},
     phrases: {},
   };
 
-  const initialStore: Record<string, Polyglot> = Object.fromEntries(
-    await Promise.all(
-      getRouteNamespaces(__remixRouteModules).map((namespace) =>
-        initiatePolyglot(namespace, options, handoffData, caches),
+  const initialStore: Record<string, PolyglotWithStaticLocale> =
+    Object.fromEntries(
+      await Promise.all(
+        getRouteNamespaces(__remixRouteModules).map(async (namespace) =>
+          initiatePolyglot(
+            handoffData.locale,
+            namespace,
+            options.polyglotOptions,
+            await load(namespace, options, handoffData, caches),
+          ),
+        ),
       ),
-    ),
-  );
+    );
 
   const initialPreload: string[] = [];
-  document
-    .querySelectorAll(`[data-i18n-preload="${options.key || '_'}"]`)
-    .forEach(($el) => {
-      initialPreload.push($el.getAttribute('href')!);
-    });
+  document.querySelectorAll(`[data-i18n-preload]`).forEach(($el) => {
+    initialPreload.push($el.getAttribute('href')!);
+  });
 
   return function RemixPolyglotProvider({ children }) {
     const [store, updateStore] = useState(initialStore);
     const [locale, setLocale] = useState<string>(handoffData.locale);
     const loadPhrases = useCallback(
-      async (namespace: string | string[], nextLocale?: string) => {
+      async (namespace: string | string[], nextLocale: string = locale) => {
         const more = Object.fromEntries(
           await Promise.all(
-            (Array.isArray(namespace) ? namespace : [namespace]).map((ns) =>
-              initiatePolyglot(
-                ns,
-                options,
-                { ...handoffData, locale: nextLocale || locale },
-                caches,
-              ),
+            (Array.isArray(namespace) ? namespace : [namespace]).map(
+              async (ns) =>
+                initiatePolyglot(
+                  nextLocale,
+                  ns,
+                  options.polyglotOptions,
+                  await load(
+                    ns,
+                    options,
+                    { ...handoffData, locale: nextLocale },
+                    caches,
+                  ),
+                ),
             ),
           ),
         );
@@ -141,7 +142,6 @@ export async function setup(
         _patched,
         locale,
         setLocale,
-        key: options.key,
         initialPreload,
         getLocaleFromUrl: options.getLocaleFromUrl,
         routeNamespaces: handoffData.routeNamespaces,
@@ -157,25 +157,6 @@ export async function setup(
   };
 }
 
-async function initiatePolyglot(
-  namespace: string,
-  { fetch, polyglotOptions }: SetupOptions,
-  handoffData: HandoffData,
-  caches: Caches,
-): Promise<[string, Polyglot]> {
-  const options = await (typeof polyglotOptions === 'function'
-    ? polyglotOptions(handoffData.locale, namespace)
-    : polyglotOptions);
-  return [
-    `${handoffData.locale}-${namespace}`,
-    new Polyglot({
-      ...options,
-      locale: handoffData.locale,
-      phrases: await load(namespace, { fetch }, handoffData, caches),
-    }),
-  ];
-}
-
 export function Handoff() {
   const { clientRoutes } = useRemixEntryContext();
   const {
@@ -183,7 +164,6 @@ export function Handoff() {
     routeNamespaces,
     _patched,
     initialPreload,
-    key,
     getLocaleFromUrl,
   } = useRemixPolyglotContext();
   useEffect(() => {
@@ -216,7 +196,7 @@ export function Handoff() {
         <link
           key={href}
           rel="prefetch"
-          data-i18n-preload={key || '_'}
+          data-i18n-preload
           as="json"
           href={href}
         />
@@ -252,13 +232,13 @@ function useRemixPolyglotContext() {
 
 async function load(
   namespace: string,
-  { fetch = window.fetch }: Pick<SetupOptions, 'fetch'>,
-  { manifest, locale, baseUrl }: HandoffData,
+  { fetch = window.fetch, manifest }: Pick<SetupOptions, 'fetch' | 'manifest'>,
+  { locale, baseUrl }: HandoffData,
   { phrases, indexes }: Caches,
-) {
+): Promise<Record<string, any>> {
   const id = `${locale}-${namespace}`;
   if (phrases[id]) {
-    return phrases[id];
+    return phrases[id]!;
   }
   if (!manifest[locale]) {
     throw new Error(`Missing index for ${locale}`);
@@ -315,5 +295,5 @@ async function load(
     }
   });
 
-  return phrases[id];
+  return phrases[id]!;
 }

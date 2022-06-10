@@ -1,42 +1,44 @@
-import type { ComponentType, Dispatch, ReactNode, SetStateAction } from 'react';
+import {
+  ComponentType,
+  Dispatch,
+  ReactNode,
+  SetStateAction,
+  useId,
+} from 'react';
 import type { EntryContext } from '@remix-run/node';
 import type {
   RouteWithValidI18nHandle,
-  AllowedPolyglotOptions,
+  PolyglotOptionsGetter,
   HandoffData,
+  PolyglotWithStaticLocale,
 } from './common';
-import { getGlobalName, isValidKey } from './common';
+import { createContext, useContext, createElement, Fragment } from 'react';
 import { resolve } from 'node:path';
 import jsesc from 'jsesc';
-import { createContext, useContext, createElement, Fragment } from 'react';
 import {
+  initiatePolyglot,
+  getGlobalName,
   getRouteNamespaces,
   hasValidI18nHandle,
   isRecord,
   isRecordOfStrings,
 } from './common';
-import Polyglot from 'node-polyglot';
 
-export type { I18nHandle } from './common';
+export type { PolyglotWithStaticLocale } from './common';
 
 interface SetupOptions {
-  manifest?: string | Record<string, string>;
+  locale: string;
+  remixContext: EntryContext;
+  manifest: Record<string, string>;
   localesBaseDir?: string;
   localesBaseUrl?: string;
-  key?: string;
-  polyglotOptions?:
-    | AllowedPolyglotOptions
-    | Promise<AllowedPolyglotOptions>
-    | ((
-        locale: string,
-        namespace: string,
-      ) => AllowedPolyglotOptions | Promise<AllowedPolyglotOptions>);
+  polyglotOptions?: PolyglotOptionsGetter;
 }
+
 interface Context {
   locale: string;
-  key?: string;
   localesBaseUrl: string;
-  store: Record<string, Polyglot>;
+  store: Record<string, PolyglotWithStaticLocale>;
   prefetch: string[];
   manifest: Record<string, string>;
   routeNamespaces: Record<string, string | string[]>;
@@ -44,31 +46,21 @@ interface Context {
 
 const RemixPolyglotContext = createContext<Context | undefined>(undefined);
 
-export async function setup(
-  locale: string,
-  context: EntryContext,
-  {
-    key,
-    manifest: manifestOpt = resolve('app/manifest-remix-polyglot.json'),
-    localesBaseDir = resolve('public/build/locales'),
-    localesBaseUrl = '/build/locales',
-    polyglotOptions,
-  }: SetupOptions = {},
-): Promise<ComponentType<{ children?: ReactNode }>> {
-  if (!isValidKey(key)) {
-    throw new Error(`Invalid key`);
-  }
-  const matchedRoutIds = context.matches.map(({ route }) => route.id);
+export async function setup({
+  locale,
+  remixContext,
+  manifest,
+  localesBaseDir = resolve('public/build/locales'),
+  localesBaseUrl = '/build/locales',
+  polyglotOptions,
+}: SetupOptions): Promise<ComponentType<{ children?: ReactNode }>> {
+  const matchedRoutIds = remixContext.matches.map(({ route }) => route.id);
   const matchedRouteModules = Object.fromEntries(
-    Object.entries(context.routeModules).filter(([id]) =>
+    Object.entries(remixContext.routeModules).filter(([id]) =>
       matchedRoutIds.includes(id),
     ),
   );
   const prefetch = new Set<string>();
-  const manifest =
-    typeof manifestOpt === 'string'
-      ? (await import(manifestOpt, { assert: { type: 'json' } })).default
-      : manifestOpt;
 
   if (!isRecordOfStrings(manifest)) {
     throw new Error('Invalid manifest format');
@@ -84,10 +76,10 @@ export async function setup(
     throw new Error(`Invalid index format for locale ${locale}`);
   }
   prefetch.add(`${locale}/${manifest[locale]}`);
-  const store: Record<string, Polyglot> = Object.fromEntries(
+  const store: Record<string, PolyglotWithStaticLocale> = Object.fromEntries(
     await Promise.all(
       getRouteNamespaces(matchedRouteModules).map(
-        async (ns): Promise<[string, Polyglot]> => {
+        async (ns): Promise<[string, PolyglotWithStaticLocale]> => {
           if (!index[ns]) {
             throw new Error(`Unknown namespace ${ns} in ${locale}`);
           }
@@ -100,25 +92,16 @@ export async function setup(
               `Invalid phrases format for namespace ${ns} in ${locale}`,
             );
           }
-          const options = await (typeof polyglotOptions === 'function'
-            ? polyglotOptions(locale, ns)
-            : polyglotOptions);
+
           prefetch.add(`${locale}/${index[ns]}`);
-          return [
-            ns,
-            new Polyglot({
-              ...options,
-              locale,
-              phrases,
-            }),
-          ];
+          return initiatePolyglot(locale, ns, polyglotOptions, phrases);
         },
       ),
     ),
   );
 
   const routeNamespaces = Object.fromEntries(
-    Object.entries(context.routeModules)
+    Object.entries(remixContext.routeModules)
       .filter((entry): entry is [string, RouteWithValidI18nHandle] =>
         hasValidI18nHandle(entry[1]),
       )
@@ -126,7 +109,6 @@ export async function setup(
   );
 
   const ctx: Context = {
-    key,
     locale,
     prefetch: Array.from(prefetch),
     manifest,
@@ -145,11 +127,13 @@ export async function setup(
 }
 
 export function usePolyglot(namespace: string = 'common') {
-  const ctx = useRemixPolyglotContext();
-  if (!ctx.store[namespace]) {
+  const { store, locale } = useRemixPolyglotContext();
+  const id = `${locale}-${namespace}`;
+
+  if (!store[id]) {
     throw new Error(`Unknown namespace ${namespace}`);
   }
-  return ctx.store[namespace];
+  return store[id];
 }
 
 export function useLocale(): [string, Dispatch<SetStateAction<string>>] {
@@ -163,13 +147,12 @@ export function useLocale(): [string, Dispatch<SetStateAction<string>>] {
 }
 
 export function Handoff() {
-  const { key, prefetch, manifest, routeNamespaces, localesBaseUrl, locale } =
+  const { prefetch, routeNamespaces, localesBaseUrl, locale } =
     useRemixPolyglotContext();
 
   const handoff: HandoffData = {
     locale,
     baseUrl: localesBaseUrl,
-    manifest,
     routeNamespaces,
   };
   return (
@@ -178,14 +161,14 @@ export function Handoff() {
         <link
           key={file}
           rel="prefetch"
-          data-i18n-preload={key || '_'}
+          data-i18n-preload
           as="json"
           href={`${localesBaseUrl}/${file}`}
         />
       ))}
       <script
         dangerouslySetInnerHTML={{
-          __html: `window.${getGlobalName(key)}=${jsesc(handoff, {
+          __html: `window.${getGlobalName()}=${jsesc(handoff, {
             es6: true,
           })};document.currentScript.remove()`,
         }}

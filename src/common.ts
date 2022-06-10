@@ -4,12 +4,22 @@ import type {
 } from '@remix-run/server-runtime/routeModules';
 import type { RouteModules as ReactRouteModules } from '@remix-run/react/routeModules';
 import type { PolyglotOptions } from 'node-polyglot';
+import Polyglot from 'node-polyglot';
 
 export type AllowedPolyglotOptions = Omit<
   PolyglotOptions,
   'phrases' | 'locale'
 >;
-export interface I18nHandle {
+
+export type PolyglotOptionsGetter =
+  | AllowedPolyglotOptions
+  | Promise<AllowedPolyglotOptions>
+  | ((
+      locale: string,
+      namespace: string,
+    ) => AllowedPolyglotOptions | Promise<AllowedPolyglotOptions>);
+
+interface I18nHandle {
   i18n: string | string[];
   [k: string]: unknown;
 }
@@ -17,16 +27,38 @@ export interface I18nHandle {
 export interface HandoffData {
   baseUrl: string;
   locale: string;
-  manifest: Record<string, string>;
   routeNamespaces: Record<string, string | string[]>;
 }
 
-export function getGlobalName(key?: string) {
-  return `__x_remix_polyglot${key ? `_${key}` : ''}`;
+export interface PolyglotWithStaticLocale extends Omit<Polyglot, 'locale'> {
+  locale: string;
+}
+export async function initiatePolyglot(
+  locale: string,
+  namespace: string,
+  polyglotOptions: PolyglotOptionsGetter | undefined,
+  phrases: Record<string, any>,
+): Promise<[string, PolyglotWithStaticLocale]> {
+  const options = await (typeof polyglotOptions === 'function'
+    ? polyglotOptions(locale, namespace)
+    : polyglotOptions);
+  const p: PolyglotWithStaticLocale = new Polyglot({
+    ...options,
+    locale,
+    phrases,
+  }) as any;
+  p.locale = locale;
+  p.t = p.t.bind(p);
+  p.extend = p.extend.bind(p);
+  p.clear = p.clear.bind(p);
+  p.replace = p.replace.bind(p);
+  p.has = p.has.bind(p);
+  p.unset = p.unset.bind(p);
+  return [`${locale}-${namespace}`, p];
 }
 
-export function isValidKey(key?: string) {
-  return Boolean(!key || key.match(/^[a-z0-9_$]+$/i));
+export function getGlobalName() {
+  return `__x_remix_polyglot`;
 }
 
 export type RouteWithValidI18nHandle = Omit<EntryRouteModule, 'handle'> & {

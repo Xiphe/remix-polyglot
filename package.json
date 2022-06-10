@@ -4,8 +4,10 @@
   "description": "An opinionated, performance obsessed, hacked i18n solution for remix that aims to just work",
   "scripts": {
     "build": "run-p build:**",
+    "watch": "run-p watch:*",
     "build:decl": "tsc",
-    "watch": "WATCH=1 npm run build",
+    "watch:decl": "npm run build:decl -- --watch",
+    "watch:build": "WATCH=1 npm run build",
     "build:server:esm": "CONFIG=serverEsm node build.js",
     "build:server:cjs": "CONFIG=serverCjs node build.js",
     "build:client:esm": "CONFIG=clientEsm node build.js",
@@ -22,21 +24,26 @@
     "react": ">=16.8"
   },
   "devDependencies": {
-    "@remix-run/node": "1.5.1",
-    "@remix-run/serve": "^1.5.1",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
     "@remix-run/dev": "1.5.1",
     "@remix-run/eslint-config": "1.5.1",
-    "@types/react-dom": "17.0.17",
-    "eslint": "8.15.0",
+    "@remix-run/node": "1.5.1",
+    "@remix-run/serve": "^1.5.1",
     "@types/jsesc": "3.0.1",
     "@types/node": "17.0.41",
     "@types/node-polyglot": "2.4.2",
     "@types/react": "18.0.12",
+    "@types/react-dom": "18.0.5",
     "esbuild": "0.14.43",
-    "esbuild-plugin-alias": "0.2.1",
+    "esbuild-register": "3.3.3",
+    "eslint": "8.15.0",
     "npm-run-all": "4.1.5",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
     "typescript": "4.7.3"
+  },
+  "dependencies": {
+    "cmpl": "0.1.1",
+    "minimist": "1.2.6",
+    "typed-t": "0.1.0"
   }
 }
