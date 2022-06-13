@@ -39,6 +39,7 @@
     "url": "https://github.com/Xiphe/remix-polyglot/issues"
   },
   "homepage": "https://github.com/Xiphe/remix-polyglot#readme",
+  "license": "MIT",
   "peerDependencies": {
     "@remix-run/react": "^1.5.1",
     "jsesc": "^3.0.2",
