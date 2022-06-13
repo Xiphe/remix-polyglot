@@ -1,5 +1,6 @@
 node_modules
-
+app/manifest-remix-polyglot.json
+remix-polyglot.env.d.ts
 /.cache
 /build
 /public/build
