@@ -27,7 +27,7 @@ interface I18nHandle {
 export interface HandoffData {
   baseUrl: string;
   locale: string;
-  routeNamespaces: Record<string, string | string[]>;
+  routeNamespaces: Record<string, undefined | string | string[]>;
 }
 
 export interface PolyglotWithStaticLocale extends Omit<Polyglot, 'locale'> {
@@ -77,15 +77,29 @@ export function getRouteNamespaces(
   ];
 }
 
-export function hasValidI18nHandle(
-  route: EntryRouteModule,
-): route is RouteWithValidI18nHandle {
-  const i18n = route.handle?.i18n;
+export function getHandleNamespaces(handles: unknown[]): string[] {
+  return Array.from(
+    new Set(handles.filter(isI18nHandle).flatMap(({ i18n }) => i18n)),
+  );
+}
+
+function isI18nHandle(handle: unknown): handle is I18nHandle {
+  if (!isRecord(handle)) {
+    return false;
+  }
+
+  const i18n = handle.i18n;
 
   return (
     typeof i18n === 'string' ||
     (Array.isArray(i18n) && i18n.every((ns) => typeof ns === 'string'))
   );
+}
+
+export function hasValidI18nHandle(
+  route: EntryRouteModule,
+): route is RouteWithValidI18nHandle {
+  return isI18nHandle(route.handle);
 }
 
 export function isRecord(input: unknown): input is Record<string, unknown> {

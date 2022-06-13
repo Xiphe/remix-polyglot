@@ -179,17 +179,7 @@ export function createBetterRemixPolyglotTypes(
         f.createIdentifier('useLocale'),
         undefined,
         [],
-        f.createTupleTypeNode([
-          f.createTypeReferenceNode(f.createIdentifier('Locale'), undefined),
-          f.createTypeReferenceNode(f.createIdentifier('Dispatch'), [
-            f.createTypeReferenceNode(f.createIdentifier('SetStateAction'), [
-              f.createTypeReferenceNode(
-                f.createIdentifier('Locale'),
-                undefined,
-              ),
-            ]),
-          ]),
-        ]),
+        f.createTypeReferenceNode(f.createIdentifier('Locale'), undefined),
         undefined,
       ),
       ...(mainNamespaces.includes('common')

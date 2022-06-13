@@ -14,7 +14,7 @@ const commonServer = {
 const commonClient = {
   entryPoints: ['src/client.tsx'],
   platform: 'node',
-  sourcemap: 'external',
+  sourcemap: 'linked',
   minify: true,
 };
 
@@ -22,6 +22,13 @@ const commonClient = {
  * @type {Record<string, import('esbuild').BuildOptions>}
  */
 const configs = {
+  cli: {
+    entryPoints: ['src/cli.ts'],
+    outfile: 'dist/cli.cjs',
+    platform: 'node',
+    format: 'cjs',
+    target: 'node12',
+  },
   serverCjs: {
     ...commonServer,
     outfile: 'dist/server.cjs',

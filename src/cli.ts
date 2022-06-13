@@ -1,6 +1,4 @@
-#!/usr/bin/env node
-
-import type { CmplOptions, WtchOpts, Prcssr } from 'cmpl';
+import type { WtchOpts, Prcssr } from 'cmpl';
 import { wtch, cmpl, cntntHsh } from 'cmpl';
 import { resolve } from 'node:path';
 import { generatePolyglotTypes, deepPartial } from 'typed-t';

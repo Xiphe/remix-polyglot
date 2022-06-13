@@ -5,9 +5,10 @@
   "scripts": {
     "build": "run-p build:**",
     "watch": "run-p watch:*",
-    "build:decl": "tsc",
     "watch:decl": "npm run build:decl -- --watch",
     "watch:build": "WATCH=1 npm run build",
+    "build:cli": "CONFIG=cli node build.js",
+    "build:decl": "tsc",
     "build:server:esm": "CONFIG=serverEsm node build.js",
     "build:server:cjs": "CONFIG=serverCjs node build.js",
     "build:client:esm": "CONFIG=clientEsm node build.js",
@@ -17,6 +18,9 @@
   "module": "dist/server.js",
   "browser": "dist/client.js",
   "types": "dist/server.d.ts",
+  "bin": {
+    "remix-polyglot": "cli.js"
+  },
   "peerDependencies": {
     "@remix-run/react": "^1.5.1",
     "jsesc": "^3.0.2",
@@ -43,6 +47,7 @@
   },
   "dependencies": {
     "cmpl": "0.1.1",
+    "ichschwoer": "0.0.1",
     "minimist": "1.2.6",
     "typed-t": "0.1.0"
   }

@@ -25,6 +25,7 @@ import {
 } from './common';
 
 export type { PolyglotWithStaticLocale } from './common';
+export { getHandleNamespaces } from './common';
 
 interface SetupOptions {
   locale: string;
@@ -136,14 +137,9 @@ export function usePolyglot(namespace: string = 'common') {
   return store[id];
 }
 
-export function useLocale(): [string, Dispatch<SetStateAction<string>>] {
+export function useLocale(): string {
   const ctx = useRemixPolyglotContext();
-  return [
-    ctx.locale,
-    () => {
-      throw new Error('Can not change locale on server');
-    },
-  ];
+  return ctx.locale;
 }
 
 export function Handoff() {

@@ -1,26 +1,16 @@
-import type {
+import {
   ComponentType,
   Context,
   Dispatch,
   ReactNode,
   SetStateAction,
 } from 'react';
-import '@remix-run/react';
-import type { ClientRoute } from '@remix-run/react/routes';
+import type { ClientRoute, RouteDataFunction } from '@remix-run/react/routes';
 import type {
   HandoffData,
   PolyglotOptionsGetter,
   PolyglotWithStaticLocale,
 } from './common';
-import type { Params } from 'react-router';
-import {
-  getRouteNamespaces,
-  getGlobalName,
-  isRecordOfStrings,
-  isRecord,
-  initiatePolyglot,
-} from './common';
-import { RemixEntryContext } from '@remix-run/react/components';
 import {
   useContext,
   createContext,
@@ -31,9 +21,20 @@ import {
   useMemo,
   useEffect,
 } from 'react';
+import { RemixEntryContext } from '@remix-run/react/components';
+import batcher from 'ichschwoer/batch-resolve';
+import {
+  getRouteNamespaces,
+  getGlobalName,
+  isRecordOfStrings,
+  isRecord,
+  initiatePolyglot,
+} from './common';
 
 export type { PolyglotWithStaticLocale } from './common';
+export { getHandleNamespaces } from './common';
 
+type Args = Parameters<RouteDataFunction>[0];
 type ContextType<T extends Context<any>> = Parameters<
   Parameters<T['Consumer']>[0]['children']
 >[0];
@@ -57,11 +58,17 @@ export function useRemixEntryContext(): RemixEntryContextType {
 }
 
 interface RemixPolyglotContextType {
-  loadPhrases: (namespace: string | string[], locale?: string) => Promise<void>;
+  loadPhrases: (
+    namespace: string | string[],
+    signal: AbortSignal,
+    locale?: string,
+  ) => Promise<void>;
   store: Record<string, PolyglotWithStaticLocale>;
   _patched: symbol;
   setLocale: Dispatch<SetStateAction<string>>;
-  getLocaleFromUrl?: (url: URL, params: Params<string>) => string | undefined;
+  preloadTranslations?: (
+    args: Omit<Args, 'signal'>,
+  ) => { locale?: string; namespaces?: string | string[] } | undefined;
   routeNamespaces: HandoffData['routeNamespaces'];
   initialPreload: string[];
   locale: string;
@@ -74,7 +81,7 @@ const RemixPolyglotContext = createContext<
 interface SetupOptions {
   manifest: Record<string, string>;
   fetch?: typeof fetch;
-  getLocaleFromUrl?: RemixPolyglotContextType['getLocaleFromUrl'];
+  preloadTranslations?: RemixPolyglotContextType['preloadTranslations'];
   polyglotOptions?: PolyglotOptionsGetter;
 }
 
@@ -110,20 +117,25 @@ export async function setup(
     const [store, updateStore] = useState(initialStore);
     const [locale, setLocale] = useState<string>(handoffData.locale);
     const loadPhrases = useCallback(
-      async (namespace: string | string[], nextLocale: string = locale) => {
+      async (
+        namespace: string | string[],
+        signal: AbortSignal,
+        nextLocale?: string,
+      ) => {
         const more = Object.fromEntries(
           await Promise.all(
             (Array.isArray(namespace) ? namespace : [namespace]).map(
               async (ns) =>
                 initiatePolyglot(
-                  nextLocale,
+                  nextLocale || locale,
                   ns,
                   options.polyglotOptions,
                   await load(
                     ns,
                     options,
-                    { ...handoffData, locale: nextLocale },
+                    { ...handoffData, locale: nextLocale || locale },
                     caches,
+                    signal,
                   ),
                 ),
             ),
@@ -143,7 +155,7 @@ export async function setup(
         locale,
         setLocale,
         initialPreload,
-        getLocaleFromUrl: options.getLocaleFromUrl,
+        preloadTranslations: options.preloadTranslations,
         routeNamespaces: handoffData.routeNamespaces,
       }),
       [loadPhrases, store, locale, _patched],
@@ -157,38 +169,84 @@ export async function setup(
   };
 }
 
+const noop = () => {
+  /* ¯\_(ツ)_/¯ */
+};
+
 export function Handoff() {
   const { clientRoutes } = useRemixEntryContext();
   const {
     loadPhrases,
     routeNamespaces,
     _patched,
+    setLocale,
     initialPreload,
-    getLocaleFromUrl,
+    preloadTranslations,
   } = useRemixPolyglotContext();
+
   useEffect(() => {
+    const batch = batcher(0);
     const patch = (route: ClientRoute) => {
-      const originalLoader = route.loader;
-      if (originalLoader && !(originalLoader as any)[_patched]) {
-        route.loader = async (args) => {
-          const locale =
-            typeof getLocaleFromUrl === 'function'
-              ? getLocaleFromUrl(args.url, args.params)
-              : undefined;
-          const ns = routeNamespaces[route.id];
-          return (
-            await Promise.all([
-              originalLoader(args),
-              ns && loadPhrases(ns, locale),
-            ])
-          )[0];
-        };
-        (route.loader as any)[_patched] = 1;
+      if (!(route as any)[_patched]) {
+        (route as any)[_patched] = {};
       }
+
+      ['loader' as const, 'action' as const].forEach((method) => {
+        const original = (route as any)[_patched][method] || route[method];
+        (route as any)[_patched][method] = original;
+
+        if (original) {
+          route[method] = async (args) => {
+            const ref = batch.ref;
+            const { signal, ...preloadArgs } = args;
+            const { locale, namespaces = routeNamespaces[route.id] } =
+              (typeof preloadTranslations === 'function' &&
+                preloadTranslations(preloadArgs)) ||
+              {};
+            const promisedPhrases = namespaces
+              ? loadPhrases(namespaces, args.signal, locale)
+              : undefined;
+            const allPhrasesLoaded = batch.push(promisedPhrases);
+
+            const [res] = await Promise.all([
+              original(args),
+              promisedPhrases?.catch((err) => {
+                if (err instanceof Error && err.name === 'AbortError') {
+                  /* ¯\_(ツ)_/¯ */
+                  return;
+                } else {
+                  console.error(err);
+                }
+              }),
+            ]);
+
+            if (!ref.current && locale) {
+              ref.current = true;
+              allPhrasesLoaded
+                .then(() => {
+                  setLocale(locale);
+                })
+                .catch(noop);
+            } else {
+              allPhrasesLoaded.catch(noop);
+            }
+
+            return res;
+          };
+        }
+      });
+
       route.children?.forEach(patch);
     };
+
     clientRoutes.forEach(patch);
-  }, [clientRoutes, routeNamespaces, loadPhrases, _patched, getLocaleFromUrl]);
+  }, [
+    clientRoutes,
+    routeNamespaces,
+    loadPhrases,
+    _patched,
+    preloadTranslations,
+  ]);
 
   return (
     <>
@@ -215,9 +273,9 @@ export function usePolyglot(namespace: string = 'common') {
   return store[id];
 }
 
-export function useLocale(): [string, Dispatch<SetStateAction<string>>] {
+export function useLocale(): string {
   const ctx = useRemixPolyglotContext();
-  return [ctx.locale, ctx.setLocale];
+  return ctx.locale;
 }
 
 function useRemixPolyglotContext() {
@@ -235,6 +293,7 @@ async function load(
   { fetch = window.fetch, manifest }: Pick<SetupOptions, 'fetch' | 'manifest'>,
   { locale, baseUrl }: HandoffData,
   { phrases, indexes }: Caches,
+  signal?: AbortSignal,
 ): Promise<Record<string, any>> {
   const id = `${locale}-${namespace}`;
   if (phrases[id]) {
@@ -247,7 +306,9 @@ async function load(
   if (!indexes[locale]) {
     indexes[locale] = new Promise(async (resolve, reject) => {
       try {
-        const res = await fetch(`${baseUrl}/${locale}/${manifest[locale]}`);
+        const res = await fetch(`${baseUrl}/${locale}/${manifest[locale]}`, {
+          signal,
+        });
         if (String(res.status)[0] !== '2') {
           throw new Error('Failed to load');
         }
@@ -257,13 +318,18 @@ async function load(
         }
         resolve(index);
       } catch (err) {
-        reject(
-          new Error(
-            `Could not read index for ${locale}. Reason: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          ),
-        );
+        delete indexes[locale];
+        if (err instanceof Error && err.name === 'AbortError') {
+          reject(err);
+        } else {
+          reject(
+            new Error(
+              `Could not read index for ${locale}. Reason: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            ),
+          );
+        }
       }
     });
   }
@@ -275,7 +341,9 @@ async function load(
 
   phrases[id] = new Promise(async (resolve, reject) => {
     try {
-      const res = await fetch(`${baseUrl}/${locale}/${index[namespace]}`);
+      const res = await fetch(`${baseUrl}/${locale}/${index[namespace]}`, {
+        signal,
+      });
       if (String(res.status)[0] !== '2') {
         throw new Error('Failed to load phrases');
       }
@@ -285,13 +353,18 @@ async function load(
       }
       resolve(resource);
     } catch (err) {
-      reject(
-        new Error(
-          `Failed to load phrases of namespace ${namespace} in ${locale}. Reason: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        ),
-      );
+      delete phrases[id];
+      if (err instanceof Error && err.name === 'AbortError') {
+        reject(err);
+      } else {
+        reject(
+          new Error(
+            `Failed to load phrases of namespace ${namespace} in ${locale}. Reason: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+      }
     }
   });
 
