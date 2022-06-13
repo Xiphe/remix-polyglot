@@ -1,7 +1,7 @@
 {
   "name": "remix-polyglot",
   "version": "0.0.0-development",
-  "description": "An opinionated, performance obsessed, hacked i18n solution for remix that aims to just work",
+  "description": "type-safe, cached-forever, split-able, non-flickering, pre-loading, persistence-agnostic internationalization made for remix ♥",
   "scripts": {
     "build": "run-p build:**",
     "watch": "run-p watch:*",
@@ -21,6 +21,23 @@
   "bin": {
     "remix-polyglot": "cli.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Xiphe/remix-polyglot.git"
+  },
+  "keywords": [
+    "remix",
+    "i18n",
+    "polyglot",
+    "performance",
+    "translations",
+    "react",
+    "types"
+  ],
+  "bugs": {
+    "url": "https://github.com/Xiphe/remix-polyglot/issues"
+  },
+  "homepage": "https://github.com/Xiphe/remix-polyglot#readme",
   "peerDependencies": {
     "@remix-run/react": "^1.5.1",
     "jsesc": "^3.0.2",
