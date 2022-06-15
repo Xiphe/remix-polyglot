@@ -1,6 +1,6 @@
 {
   "name": "remix-polyglot",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "type-safe, cached-forever, split-able, non-flickering, pre-loading, persistence-agnostic internationalization made for remix ♥",
   "scripts": {
     "build": "run-p build:**",
