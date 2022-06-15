@@ -1,0 +1,6 @@
+{
+  "greeting": "Hola %{name}",
+  "back": "Volver",
+  "nested": "ruta\nanidada",
+  "switch-lang": "Cambiar el idioma al inglés"
+}

@@ -1,0 +1,6 @@
+{
+  "greeting": "Hello %{name}",
+  "back": "Back",
+  "nested": "nested route",
+  "switch-lang": "Switch language to Spanish"
+}
