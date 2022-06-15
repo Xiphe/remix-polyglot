@@ -3,12 +3,8 @@
   "private": true,
   "sideEffects": false,
   "scripts": {
-    "build": "run-p build:*",
-    "dev": "run-p dev:*",
-    "build:remix": "remix build",
-    "build:i18n": "../../cli.js",
-    "dev:remix": "remix dev",
-    "dev:i18n": "npm run build:i18n -- --watch",
+    "build": "remix build",
+    "dev": "remix dev",
     "start": "remix-serve build"
   },
   "engines": {

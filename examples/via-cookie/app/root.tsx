@@ -1,70 +1,32 @@
-import type { MetaFunction } from '@remix-run/node';
-import type { I18nHandle } from 'remix-polyglot';
-import { useState, useEffect } from 'react';
+import type { MetaFunction } from "@remix-run/node";
 import {
   Links,
   LiveReload,
   Meta,
+  Outlet,
   Scripts,
   ScrollRestoration,
-  Outlet,
-  useTransition,
-} from '@remix-run/react';
-import { Handoff as RemixPolyglotHandoff, usePolyglot } from 'remix-polyglot';
-import { dirMap, LocaleChanger } from '~/util/i18n';
+} from "@remix-run/react";
 
 export const meta: MetaFunction = () => ({
-  charset: 'utf-8',
-  title: 'New Remix App',
-  viewport: 'width=device-width,initial-scale=1',
+  charset: "utf-8",
+  title: "New Remix App",
+  viewport: "width=device-width,initial-scale=1",
 });
 
-export const handle: I18nHandle = {
-  i18n: 'common',
-};
-
 export default function App() {
-  const { locale, t } = usePolyglot('common');
-  const navigating = useLoadingIndicator();
-
   return (
-    <html lang={locale} dir={dirMap[locale]}>
+    <html lang="en">
       <head>
         <Meta />
         <Links />
       </head>
       <body>
-        <h1>{t('greeting')}</h1>
-        <LocaleChanger />
         <Outlet />
-        {navigating ? (
-          <>
-            <br />
-            👀 Navigating...
-          </>
-        ) : null}
         <ScrollRestoration />
-        <RemixPolyglotHandoff />
         <Scripts />
         <LiveReload />
       </body>
     </html>
   );
-}
-
-function useLoadingIndicator() {
-  const { state } = useTransition();
-  const [loading, setLoading] = useState<boolean>(false);
-  useEffect(() => {
-    if (state === 'idle') {
-      setLoading(false);
-      return;
-    }
-    const i = setTimeout(() => {
-      setLoading(true);
-    }, 300);
-    return () => clearTimeout(i);
-  }, [state]);
-
-  return loading;
 }
