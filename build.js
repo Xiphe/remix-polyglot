@@ -85,10 +85,18 @@ build({
             external: true,
           }));
         }
-        build.onResolve({ filter: /^[^./]|^\.[^./]|^\.\.[^/]/ }, (args) => ({
-          path: args.path,
-          external: true,
-        }));
+        build.onResolve({ filter: /^[^./]|^\.[^./]|^\.\.[^/]/ }, (args) => {
+          if (args.path === 'node-polyglot') {
+            return {
+              path: '@xiphe/node-polyglot',
+              external: true,
+            };
+          }
+          return {
+            path: args.path,
+            external: true,
+          };
+        });
       },
     },
   ],
