@@ -13,7 +13,7 @@
     "build:server:cjs": "CONFIG=serverCjs node build.js",
     "build:client:esm": "CONFIG=clientEsm node build.js",
     "build:client:cjs": "CONFIG=clientCjs node build.js",
-    "prepare": "npm run build"
+    "prepare": "rm -rf dist && npm run build"
   },
   "main": "dist/server.cjs",
   "module": "dist/server.js",
