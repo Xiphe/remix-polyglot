@@ -2,6 +2,7 @@ import type {
   EntryRouteModule,
   RouteModules,
 } from '@remix-run/server-runtime/routeModules';
+import { createElement, Fragment, ReactNode } from 'react';
 import type { RouteModules as ReactRouteModules } from '@remix-run/react/routeModules';
 import type { PolyglotOptions } from 'node-polyglot';
 import Polyglot from 'node-polyglot';
@@ -30,24 +31,67 @@ export interface HandoffData {
   routeNamespaces: Record<string, undefined | string | string[]>;
 }
 
-export interface PolyglotWithStaticLocale extends Omit<Polyglot, 'locale'> {
+export interface RmxPolyglot extends Omit<Polyglot, 'locale'> {
   locale: string;
+  tx: (
+    phrase: string,
+    options?: number | Polyglot.InterpolationOptions,
+  ) => ReactNode;
 }
 export async function initiatePolyglot(
   locale: string,
   namespace: string,
   polyglotOptions: PolyglotOptionsGetter | undefined,
   phrases: Record<string, any>,
-): Promise<[string, PolyglotWithStaticLocale]> {
+): Promise<[string, RmxPolyglot]> {
   const options = await (typeof polyglotOptions === 'function'
     ? polyglotOptions(locale, namespace)
     : polyglotOptions);
-  const p: PolyglotWithStaticLocale = new Polyglot({
+  const p: RmxPolyglot = new Polyglot({
     ...options,
     locale,
     phrases,
   }) as any;
   p.locale = locale;
+
+  p.tx = p.t.bind({
+    ...p,
+    replaceImplementation: function replaceReact(
+      interpolationRegex: RegExp,
+      cb: (a: string, b: string) => string,
+    ) {
+      // @ts-ignore
+      const phrase: string = this;
+
+      if (!phraseCache.has(phrase)) {
+        phraseCache.set(
+          phrase,
+          phrase
+            .split(interpolationRegex)
+            .map((str, i) =>
+              i % 2 === 0
+                ? newLinesToBr(str)
+                : [
+                    `${options?.interpolation?.prefix || '%{'}${str}${
+                      options?.interpolation?.suffix || '}'
+                    }`,
+                    str,
+                  ],
+            ),
+        );
+      }
+
+      return createElement(
+        Fragment,
+        {},
+        ...phraseCache
+          .get(phrase)!
+          .flatMap((nodes, i) =>
+            i % 2 === 0 ? nodes : cb(nodes[0] as string, nodes[1] as string),
+          ),
+      );
+    },
+  });
   p.t = p.t.bind(p);
   p.extend = p.extend.bind(p);
   p.clear = p.clear.bind(p);
@@ -55,6 +99,17 @@ export async function initiatePolyglot(
   p.has = p.has.bind(p);
   p.unset = p.unset.bind(p);
   return [`${locale}-${namespace}`, p];
+}
+
+const phraseCache = new Map<string, (string | ReactNode[])[]>();
+
+function newLinesToBr(st: string): (string | ReactNode)[] {
+  return st.split(/\n/).flatMap((st, i, a) => {
+    if (i + 1 === a.length) {
+      return st;
+    }
+    return [st, createElement('br')];
+  });
 }
 
 export function getGlobalName() {

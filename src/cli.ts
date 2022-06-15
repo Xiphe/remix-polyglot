@@ -1,7 +1,11 @@
 import type { WtchOpts, Prcssr } from 'cmpl';
 import { wtch, cmpl, cntntHsh } from 'cmpl';
 import { resolve } from 'node:path';
-import { generatePolyglotTypes, deepPartial } from 'typed-t';
+import {
+  generatePolyglotTypes,
+  deepPartial,
+  defaultPolyglotTranslationMethod as t,
+} from 'typed-t';
 import ts, { factory as f } from 'typescript';
 import { writeFile } from 'node:fs/promises';
 import minimist from 'minimist';
@@ -10,6 +14,7 @@ import {
   createBetterRemixPolyglotTypes,
   createImports,
   ucFirst,
+  tx,
 } from './factories';
 
 const defaults = {
@@ -101,6 +106,7 @@ const processor: Prcssr = {
           polyglot: `${ucFirst(namespace)}Polyglot`,
         },
         heritageClauses: [],
+        translationMethods: [t, tx],
         additionalMembers: additionalPolyglotMembers(),
       });
     }

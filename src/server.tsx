@@ -10,7 +10,7 @@ import type {
   RouteWithValidI18nHandle,
   PolyglotOptionsGetter,
   HandoffData,
-  PolyglotWithStaticLocale,
+  RmxPolyglot,
 } from './common';
 import { createContext, useContext, createElement, Fragment } from 'react';
 import { resolve } from 'node:path';
@@ -24,7 +24,7 @@ import {
   isRecordOfStrings,
 } from './common';
 
-export type { PolyglotWithStaticLocale } from './common';
+export type { RmxPolyglot } from './common';
 export { getHandleNamespaces } from './common';
 
 interface SetupOptions {
@@ -39,7 +39,7 @@ interface SetupOptions {
 interface Context {
   locale: string;
   localesBaseUrl: string;
-  store: Record<string, PolyglotWithStaticLocale>;
+  store: Record<string, RmxPolyglot>;
   prefetch: string[];
   manifest: Record<string, string>;
   routeNamespaces: Record<string, string | string[]>;
@@ -77,10 +77,10 @@ export async function setup({
     throw new Error(`Invalid index format for locale ${locale}`);
   }
   prefetch.add(`${locale}/${manifest[locale]}`);
-  const store: Record<string, PolyglotWithStaticLocale> = Object.fromEntries(
+  const store: Record<string, RmxPolyglot> = Object.fromEntries(
     await Promise.all(
       getRouteNamespaces(matchedRouteModules).map(
-        async (ns): Promise<[string, PolyglotWithStaticLocale]> => {
+        async (ns): Promise<[string, RmxPolyglot]> => {
           if (!index[ns]) {
             throw new Error(`Unknown namespace ${ns} in ${locale}`);
           }

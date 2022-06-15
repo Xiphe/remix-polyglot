@@ -42,8 +42,8 @@
   "license": "MIT",
   "peerDependencies": {
     "@remix-run/react": "^1.5.1",
+    "@xiphe/node-polyglot": "2.5.0-preview",
     "jsesc": "^3.0.2",
-    "node-polyglot": "^2.4.2",
     "react": ">=16.8"
   },
   "devDependencies": {
@@ -69,6 +69,6 @@
     "cmpl": "0.1.1",
     "ichschwoer": "0.0.1",
     "minimist": "1.2.6",
-    "typed-t": "0.1.0"
+    "typed-t": "0.2.0"
   }
 }

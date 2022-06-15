@@ -6,11 +6,7 @@ import {
   SetStateAction,
 } from 'react';
 import type { ClientRoute, RouteDataFunction } from '@remix-run/react/routes';
-import type {
-  HandoffData,
-  PolyglotOptionsGetter,
-  PolyglotWithStaticLocale,
-} from './common';
+import type { HandoffData, PolyglotOptionsGetter, RmxPolyglot } from './common';
 import {
   useContext,
   createContext,
@@ -31,7 +27,7 @@ import {
   initiatePolyglot,
 } from './common';
 
-export type { PolyglotWithStaticLocale } from './common';
+export type { RmxPolyglot } from './common';
 export { getHandleNamespaces } from './common';
 
 type Args = Parameters<RouteDataFunction>[0];
@@ -63,7 +59,7 @@ interface RemixPolyglotContextType {
     signal: AbortSignal,
     locale?: string,
   ) => Promise<void>;
-  store: Record<string, PolyglotWithStaticLocale>;
+  store: Record<string, RmxPolyglot>;
   _patched: symbol;
   setLocale: Dispatch<SetStateAction<string>>;
   preloadTranslations?: (
@@ -94,19 +90,18 @@ export async function setup(
     phrases: {},
   };
 
-  const initialStore: Record<string, PolyglotWithStaticLocale> =
-    Object.fromEntries(
-      await Promise.all(
-        getRouteNamespaces(__remixRouteModules).map(async (namespace) =>
-          initiatePolyglot(
-            handoffData.locale,
-            namespace,
-            options.polyglotOptions,
-            await load(namespace, options, handoffData, caches),
-          ),
+  const initialStore: Record<string, RmxPolyglot> = Object.fromEntries(
+    await Promise.all(
+      getRouteNamespaces(__remixRouteModules).map(async (namespace) =>
+        initiatePolyglot(
+          handoffData.locale,
+          namespace,
+          options.polyglotOptions,
+          await load(namespace, options, handoffData, caches),
         ),
       ),
-    );
+    ),
+  );
 
   const initialPreload: string[] = [];
   document.querySelectorAll(`[data-i18n-preload]`).forEach(($el) => {

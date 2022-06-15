@@ -1,4 +1,18 @@
+import type { PolyglotTranslationMethod } from 'typed-t';
 import ts, { factory as f } from 'typescript';
+
+export const tx: PolyglotTranslationMethod = {
+  name: 'tx',
+  returnType: f.createTypeReferenceNode(
+    f.createIdentifier('ReactNode'),
+    undefined,
+  ),
+  interpolationParamType: f.createUnionTypeNode([
+    f.createTypeReferenceNode(f.createIdentifier('ReactNode'), undefined),
+    f.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+    f.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword),
+  ]),
+};
 
 export function createImports() {
   return [
@@ -9,6 +23,11 @@ export function createImports() {
         true,
         undefined,
         f.createNamedImports([
+          f.createImportSpecifier(
+            false,
+            undefined,
+            f.createIdentifier('ReactNode'),
+          ),
           f.createImportSpecifier(
             false,
             undefined,
