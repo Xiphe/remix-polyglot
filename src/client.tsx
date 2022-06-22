@@ -34,14 +34,20 @@ type Args = Parameters<RouteDataFunction>[0];
 type ContextType<T extends Context<any>> = Parameters<
   Parameters<T['Consumer']>[0]['children']
 >[0];
+
 interface Caches {
-  phrases: Record<string, Promise<Record<string, any>> | undefined>;
-  indexes: Record<string, Promise<Record<string, string>> | undefined>;
+  namespaces: Map<string, Promise<Record<string, any>> | undefined>;
+  indexes: Map<string, Promise<Record<string, string>> | undefined>;
 }
 type RemixEntryContextType = Exclude<
   ContextType<typeof RemixEntryContext>,
   undefined
 >;
+
+const defaultCaches: Caches = {
+  namespaces: new Map<string, Promise<Record<string, any>> | undefined>(),
+  indexes: new Map<string, Promise<Record<string, string>> | undefined>(),
+};
 
 export function useRemixEntryContext(): RemixEntryContextType {
   const context = useContext(RemixEntryContext);
@@ -77,6 +83,7 @@ const RemixPolyglotContext = createContext<
 interface SetupOptions {
   manifest: Record<string, string>;
   fetch?: typeof fetch;
+  caches?: Caches;
   preloadTranslations?: RemixPolyglotContextType['preloadTranslations'];
   polyglotOptions?: PolyglotOptionsGetter;
 }
@@ -85,10 +92,6 @@ export async function setup(
   options: SetupOptions,
 ): Promise<ComponentType<{ children?: ReactNode }>> {
   const handoffData = (window as any)[getGlobalName()] as HandoffData;
-  const caches = {
-    indexes: {},
-    phrases: {},
-  };
 
   const initialStore: Record<string, RmxPolyglot> = Object.fromEntries(
     await Promise.all(
@@ -97,7 +100,7 @@ export async function setup(
           handoffData.locale,
           namespace,
           options.polyglotOptions,
-          await load(namespace, options, handoffData, caches),
+          await load(namespace, options, handoffData),
         ),
       ),
     ),
@@ -129,7 +132,6 @@ export async function setup(
                     ns,
                     options,
                     { ...handoffData, locale: nextLocale || locale },
-                    caches,
                     signal,
                   ),
                 ),
@@ -285,83 +287,99 @@ function useRemixPolyglotContext() {
 
 async function load(
   namespace: string,
-  { fetch = window.fetch, manifest }: Pick<SetupOptions, 'fetch' | 'manifest'>,
+  {
+    fetch = window.fetch,
+    caches: { namespaces, indexes } = defaultCaches,
+    manifest,
+  }: Pick<SetupOptions, 'fetch' | 'manifest' | 'caches'>,
   { locale, baseUrl }: HandoffData,
-  { phrases, indexes }: Caches,
   signal?: AbortSignal,
 ): Promise<Record<string, any>> {
-  const id = `${locale}-${namespace}`;
-  if (phrases[id]) {
-    return phrases[id]!;
-  }
   if (!manifest[locale]) {
     throw new Error(`Missing index for ${locale}`);
   }
-
-  if (!indexes[locale]) {
-    indexes[locale] = new Promise(async (resolve, reject) => {
-      try {
-        const res = await fetch(`${baseUrl}/${locale}/${manifest[locale]}`, {
-          signal,
-        });
-        if (String(res.status)[0] !== '2') {
-          throw new Error('Failed to load');
+  const indexUrl = `${baseUrl}/${locale}/${manifest[locale]}`;
+  if (!indexes.has(indexUrl)) {
+    indexes.set(
+      indexUrl,
+      new Promise(async (resolve, reject) => {
+        try {
+          const res = await fetch(indexUrl, {
+            signal,
+          });
+          if (String(res.status)[0] !== '2') {
+            throw new Error('Failed to load');
+          }
+          const index = await res.json();
+          if (!isRecordOfStrings(index)) {
+            throw new Error('Invalid format');
+          }
+          resolve(index);
+        } catch (err) {
+          Promise.resolve(indexes.delete(indexUrl)).catch(noop);
+          if (err instanceof Error && err.name === 'AbortError') {
+            reject(err);
+          } else {
+            reject(
+              new Error(
+                `Could not read index for ${locale}. Reason: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              ),
+            );
+          }
         }
-        const index = await res.json();
-        if (!isRecordOfStrings(index)) {
-          throw new Error('Invalid format');
-        }
-        resolve(index);
-      } catch (err) {
-        delete indexes[locale];
-        if (err instanceof Error && err.name === 'AbortError') {
-          reject(err);
-        } else {
-          reject(
-            new Error(
-              `Could not read index for ${locale}. Reason: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            ),
-          );
-        }
-      }
-    });
+      }),
+    );
   }
 
-  const index = await indexes[locale]!;
-  if (!index[namespace]) {
+  const index = await indexes.get(indexUrl);
+  if (!index || !index[namespace]) {
     throw new Error(`Missing namespace ${namespace} on locale ${locale}`);
   }
 
-  phrases[id] = new Promise(async (resolve, reject) => {
-    try {
-      const res = await fetch(`${baseUrl}/${locale}/${index[namespace]}`, {
-        signal,
-      });
-      if (String(res.status)[0] !== '2') {
-        throw new Error('Failed to load phrases');
-      }
-      const resource = await res.json();
-      if (!isRecord(resource)) {
-        throw new Error('Invalid format');
-      }
-      resolve(resource);
-    } catch (err) {
-      delete phrases[id];
-      if (err instanceof Error && err.name === 'AbortError') {
-        reject(err);
-      } else {
-        reject(
-          new Error(
-            `Failed to load phrases of namespace ${namespace} in ${locale}. Reason: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          ),
-        );
-      }
-    }
-  });
+  const namespaceUrl = `${baseUrl}/${locale}/${index[namespace]}`;
+  if (!namespaces.has(namespaceUrl)) {
+    namespaces.set(
+      namespaceUrl,
+      new Promise(async (resolve, reject) => {
+        try {
+          const res = await fetch(namespaceUrl, {
+            signal,
+          });
+          if (String(res.status)[0] !== '2') {
+            throw new Error('Failed to load phrases');
+          }
+          const resource = await res.json();
+          if (!isRecord(resource)) {
+            throw new Error('Invalid format');
+          }
+          resolve(resource);
+        } catch (err) {
+          Promise.resolve(namespaces.delete(namespaceUrl)).catch(noop);
+          if (err instanceof Error && err.name === 'AbortError') {
+            reject(err);
+          } else {
+            reject(
+              new Error(
+                `Failed to load phrases of namespace ${namespace} in ${locale}. Reason: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              ),
+            );
+          }
+        }
+      }),
+    );
+  }
 
-  return phrases[id]!;
+  const phrases = await namespaces.get(namespaceUrl);
+
+  if (!phrases) {
+    throw new Error(
+      `Missing phrases in namespace ${namespace} on locale ${locale}`,
+    );
+  }
+
+  return phrases;
 }
