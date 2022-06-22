@@ -10,6 +10,7 @@ import {
 } from '@remix-run/react';
 import { useEffect, useState } from 'react';
 import { useLocale, Handoff as RemixPolyglotHandoff } from 'remix-polyglot';
+import { dirMap } from '~/util/i18n';
 
 export const meta: MetaFunction = () => ({
   charset: 'utf-8',
@@ -22,7 +23,8 @@ export default function App() {
   const navigating = useLoadingIndicator();
 
   return (
-    <html lang={locale} dir="ltr">
+    /* 🧑‍🔧 INSTALL: set locale and optionally dir */
+    <html lang={locale} dir={dirMap[locale]}>
       <head>
         <Meta />
         <Links />
@@ -30,8 +32,7 @@ export default function App() {
       <body>
         <Outlet />
         {
-          /* This is optional.
-             I use it when testing to ensure remix considers navigation done when i18n is ready */
+          /* 🏄 OPTIONAL: not related to this package, just a little loading indicator */
           navigating ? (
             <>
               <br />
@@ -40,6 +41,7 @@ export default function App() {
           ) : null
         }
         <ScrollRestoration />
+        {/* 🧑‍🔧 INSTALL: render Handoff before remix Scripts */}
         <RemixPolyglotHandoff />
         <Scripts />
         <LiveReload />

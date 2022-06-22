@@ -3,7 +3,7 @@
   "private": true,
   "sideEffects": false,
   "scripts": {
-    "build": "run-p build:*",
+    "build": "npm run build:i18n && npm run build:remix",
     "dev": "run-p dev:*",
     "build:remix": "remix build",
     "build:i18n": "remix-polyglot",

@@ -1,53 +1,42 @@
-# Welcome to Remix!
+# Welcome to remix-polyglot via url example
 
-- [Remix Docs](https://remix.run/docs)
+## Playground
 
-## Development
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/Xiphe/remix-polyglot/tree/main/examples/via-url?file=app%2Froutes%2F%24lang.tsx)
 
-From your terminal:
+## How to setup this approach into your app
 
-```sh
-npm run dev
-```
+_this assumes a freshly created remix app with typescript, please let me know
+when you have trouble integrating_
 
-This starts your app in development mode, rebuilding assets on file changes.
+1. install package
 
-## Deployment
+   ```bash
+   npm install remix-polyglot
+   # yarn add remix-polyglot
 
-First, build your app for production:
+   # And to run dev processes in parallel
+   npm install -D npm-run-all
+   # yarn add -D npm-run-all
+   ```
 
-```sh
-npm run build
-```
+2. update your npm build scripts to run `remix-polyglot`  
+   and your dev scripts to run `remix-polyglot --watch`  
+   _Example: [`package.json`](https://github.com/Xiphe/remix-polyglot/blob/main/examples/via-url/package.json#L6-L12)_
 
-Then run the app in production mode:
+3. Add at least one locale to your project under `/locales/{code}/{namespace}.json`  
+   _Example: [`locales/en/common.json`](https://github.com/Xiphe/remix-polyglot/blob/main/examples/via-url/locales/en/common.json) (common is the default namespace)_
 
-```sh
-npm start
-```
+4. Run `npx remix-polyglot` once  
+   _This should create a `remix-polyglot.env.d.ts` and an `app/manifest-remix-polyglot.json` file_
 
-Now you'll need to pick a host to deploy it to.
+5. exclude `remix-polyglot.env.d.ts` and `app/manifest-remix-polyglot.json` from version control.
+   _Example [`.gitignore`](https://github.com/Xiphe/remix-polyglot/blob/main/examples/via-url/.gitignore#L2-L3)_
 
-### DIY
+6. Follow the `/* 🧑‍🔧 INSTALL: */` comments in [`app/entry.client.tsx`](https://github.com/Xiphe/remix-polyglot/blob/main/examples/via-url/app/entry.client.tsx), [`app/entry.server.tsx`](https://github.com/Xiphe/remix-polyglot/blob/main/examples/via-url/app/entry.server.tsx) and [`app/root.tsx`](https://github.com/Xiphe/remix-polyglot/blob/main/examples/via-url/app/root.tsx) to bootstrap your app with translation support.
 
-If you're familiar with deploying node applications, the built-in Remix app server is production-ready.
+7. Thats it 🎉
 
-Make sure to deploy the output of `remix build`
+## How to use remix polyglot
 
-- `build/`
-- `public/build/`
-
-### Using a Template
-
-When you ran `npx create-remix@latest` there were a few choices for hosting. You can run that again to create a new project, then copy over your `app/` folder to the new project that's pre-configured for your target server.
-
-```sh
-cd ..
-# create a new project, and pick a pre-configured host
-npx create-remix@latest
-cd my-new-remix-app
-# remove the new project's app (not the old one!)
-rm -rf app
-# copy your app over
-cp -R ../my-old-remix-app/app app
-```
+Please follow the `/* 🗣 USE: */` comments in [route files](https://github.com/Xiphe/remix-polyglot/tree/main/examples/via-url/app/routes).

@@ -13,8 +13,6 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "remix-polyglot": ["../.."],
-      "remix-polyglot/*": ["../../*"],
       "~/*": ["./app/*"]
     },
 
