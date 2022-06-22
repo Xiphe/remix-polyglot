@@ -4,7 +4,7 @@ import { setup as setupRemixPolyglot } from 'remix-polyglot/client';
 import { preloadTranslations } from '~/util/i18n';
 import localeManifest from './manifest-remix-polyglot.json';
 
-(async function bootstrap() {
+async function bootstrap() {
   const RemixPolyglotProvider = await setupRemixPolyglot({
     manifest: localeManifest,
     preloadTranslations,
@@ -16,6 +16,8 @@ import localeManifest from './manifest-remix-polyglot.json';
     </RemixPolyglotProvider>,
     document,
   );
-})().catch((err) => {
+}
+
+bootstrap().catch((err) => {
   console.error('Failed to bootstrap client:', err);
 });
