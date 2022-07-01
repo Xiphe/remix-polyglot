@@ -76,7 +76,7 @@ interface RemixPolyglotContextType {
   locale: string;
 }
 
-const RemixPolyglotContext = createContext<
+export const RemixPolyglotContext = createContext<
   undefined | RemixPolyglotContextType
 >(undefined);
 

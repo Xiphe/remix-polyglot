@@ -39,7 +39,9 @@ interface Context {
   routeNamespaces: Record<string, string | string[]>;
 }
 
-const RemixPolyglotContext = createContext<Context | undefined>(undefined);
+export const RemixPolyglotContext = createContext<Context | undefined>(
+  undefined,
+);
 
 export async function setup({
   locale,
