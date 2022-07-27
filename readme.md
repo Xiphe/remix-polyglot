@@ -7,7 +7,7 @@ _...all while still using plain old json files as phrase storage._
 
 ## 🚨 Monkey-Patches Remix 🙈
 
-This package [uses unofficial Remix API](https://github.com/Xiphe/remix-polyglot/blob/main/src/client.tsx#L50-L58) and [monkey-patches Remix data functions](https://github.com/Xiphe/remix-polyglot/blob/main/src/client.tsx#L199) to make sure all lazy translation files
+This package [uses unofficial Remix API](https://github.com/Xiphe/remix-polyglot/blob/main/src/client.tsx#L52-L60) and [monkey-patches Remix data functions](https://github.com/Xiphe/remix-polyglot/blob/main/src/client.tsx#L184-L246) to make sure all lazy translation files
 are loaded before rendering a new page with new translation namespaces.
 
 I hope remix will eventually provide an official way to [dynamically declare
@@ -30,7 +30,8 @@ npm install remix-polyglot
 
 ## Examples
 
-See [examples folder for guidance on how to setup your project](https://github.com/Xiphe/remix-polyglot/tree/main/examples/)
+See [via-url example folder for guidance on how to setup your project](https://github.com/Xiphe/remix-polyglot/tree/main/examples/via-url)
+There is also a [cookie based example](https://github.com/Xiphe/remix-polyglot/tree/main/examples/via-cookie) but it's not documented that well.
 
 ## Wait what?!
 
