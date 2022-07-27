@@ -30,7 +30,7 @@ npm install remix-polyglot
 
 ## Examples
 
-See [via-url example folder for guidance on how to setup your project](https://github.com/Xiphe/remix-polyglot/tree/main/examples/via-url)
+See [via-url example folder for guidance on how to setup your project](https://github.com/Xiphe/remix-polyglot/tree/main/examples/via-url)  
 There is also a [cookie based example](https://github.com/Xiphe/remix-polyglot/tree/main/examples/via-cookie) but it's not documented that well.
 
 ## Wait what?!
