@@ -1,3 +1,10 @@
+# 🚨 no longer works with remix since they use react-router internally 🚨
+
+This was an experiment all along and the internal remix API's I've used are no longer available.
+My i18n projects don't use Remix and I don't have any plans to further invest into this approach. 
+
+✨🐬🌍
+
 # remix-polyglot
 
 type-safe, cached-forever, split-able, non-flickering, pre-loading,
